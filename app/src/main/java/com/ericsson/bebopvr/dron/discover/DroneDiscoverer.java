@@ -150,6 +150,7 @@ public class DroneDiscoverer {
             mDiscoveryListener.onServicesDevicesListUpdated();
             mArdiscoveryService.startWifiDiscovering();
             mStartDiscoveryAfterConnection = false;
+            Log.i(TAG, "Finished discovering");
         } else {
             mStartDiscoveryAfterConnection = true;
         }
