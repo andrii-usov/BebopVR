@@ -22,5 +22,5 @@ public interface DroneService {
 
     void land();
 
-    void takingOff();
+    void takeOff();
 }

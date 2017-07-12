@@ -21,13 +21,10 @@ import android.os.Bundle;
 import android.os.Handler;
 import android.widget.TextView;
 
+import com.ericsson.bebopvr.controller.DroneControllerManager;
 import com.ericsson.bebopvr.dron.Drone;
 import com.ericsson.bebopvr.dron.DroneService;
 import com.google.vr.sdk.base.AndroidCompat;
-import com.google.vr.sdk.controller.Controller;
-import com.google.vr.sdk.controller.Controller.ConnectionStates;
-import com.google.vr.sdk.controller.ControllerManager;
-import com.google.vr.sdk.controller.ControllerManager.ApiStatus;
 import com.parrot.arsdk.arcontroller.ARCONTROLLER_DEVICE_STATE_ENUM;
 
 /**
@@ -37,11 +34,7 @@ import com.parrot.arsdk.arcontroller.ARCONTROLLER_DEVICE_STATE_ENUM;
  */
 public class ControllerClientActivity extends Activity {
 
-    private static final String TAG = "ControllerClientActivit";
-
-    // These two objects are the primary APIs for interacting with the Daydream controller.
-    private ControllerManager controllerManager;
-    private Controller controller;
+    private static final String TAG = "ControllerClientActivity";
 
     // These TextViews display controller events.
     private TextView apiStatusView;
@@ -50,6 +43,8 @@ public class ControllerClientActivity extends Activity {
     private TextView controllerTouchpadView;
     private TextView controllerButtonView;
     private TextView controllerBatteryView;
+
+    private DroneControllerManager droneControllerManager;
 
     // This is a 3D representation of the controller's pose. See its comments for more information.
     private OrientationView controllerOrientationView;
@@ -78,17 +73,18 @@ public class ControllerClientActivity extends Activity {
         controllerButtonView = (TextView) findViewById(R.id.controller_button_view);
         controllerBatteryView = (TextView) findViewById(R.id.controller_battery_view);
 
+        this.droneControllerManager = new DroneControllerManager(this);
+
         // Start the ControllerManager and acquire a Controller object which represents a single
         // physical controller. Bind our listener to the ControllerManager and Controller.
         EventListener listener = new EventListener();
-        controllerManager = new ControllerManager(this, listener);
-        apiStatusView.setText("Binding to VR Service");
-        controller = controllerManager.getController();
-        controller.setEventListener(listener);
+        this.droneControllerManager.addDroneService(listener);
+
+        apiStatusView.setText("OK");
 
         // Bind the OrientationView to our acquired controller.
         controllerOrientationView = (OrientationView) findViewById(R.id.controller_orientation_view);
-        controllerOrientationView.setController(controller);
+        controllerOrientationView.setController(droneControllerManager.getController());
 
         drone = new Drone(this);
         droneService = drone.getDroneService();
@@ -105,7 +101,7 @@ public class ControllerClientActivity extends Activity {
     @Override
     protected void onStart() {
         super.onStart();
-        controllerManager.start();
+        droneControllerManager.start();
         controllerOrientationView.startTrackingOrientation();
         if ((drone != null) && !(ARCONTROLLER_DEVICE_STATE_ENUM.ARCONTROLLER_DEVICE_STATE_RUNNING.equals(drone.getState()))) {
             // if the connection to the Bebop fails, finish the activity
@@ -126,7 +122,7 @@ public class ControllerClientActivity extends Activity {
 
     @Override
     protected void onStop() {
-        controllerManager.stop();
+        droneControllerManager.stop();
         controllerOrientationView.stopTrackingOrientation();
         super.onStop();
     }
@@ -141,73 +137,41 @@ public class ControllerClientActivity extends Activity {
     // We receive all events from the Controller through this listener. In this example, our
     // listener handles both ControllerManager.EventListener and Controller.EventListener events.
     // This class is also a Runnable since the events will be reposted to the UI thread.
-    private class EventListener extends Controller.EventListener
-            implements ControllerManager.EventListener, Runnable {
-
-        // The status of the overall controller API. This is primarily used for error handling since
-        // it rarely changes.
-        private String apiStatus;
-
-        // The state of a specific Controller connection.
-        private int controllerState = ConnectionStates.DISCONNECTED;
-
-        @Override
-        public void onApiStatusChanged(int state) {
-            apiStatus = ApiStatus.toString(state);
-            uiHandler.post(this);
-        }
-
-        @Override
-        public void onConnectionStateChanged(int state) {
-            controllerState = state;
-            uiHandler.post(this);
-        }
-
-        @Override
-        public void onRecentered() {
-            // In a real GVR application, this would have implicitly called recenterHeadTracker().
-            // Most apps don't care about this, but apps that want to implement custom behavior when a
-            // recentering occurs should use this callback.
-            controllerOrientationView.resetYaw();
-        }
-
-        @Override
-        public void onUpdate() {
-            uiHandler.post(this);
-        }
+    private class EventListener implements DroneService, Runnable {
+        private byte pitch;
+        private byte yaw;
+        private byte gaz;
+        private byte roll;
+        private String status;
 
         // Update the various TextViews in the UI thread.
         @Override
         public void run() {
-            apiStatusView.setText(apiStatus);
-            controllerStateView.setText(ConnectionStates.toString(controllerState));
-            controller.update();
+            controllerStateView.setText(status);
 
-            float[] angles = new float[3];
-            controller.orientation.toYawPitchRollDegrees(angles);
-            controllerOrientationText.setText(String.format(
-                    "%s\n%s\n[%4.0f\u00b0 y %4.0f\u00b0 p %4.0f\u00b0 r]",
-                    controller.orientation,
-                    controller.orientation.toAxisAngleString(),
-                    angles[0], angles[1], angles[2]));
+            controllerOrientationText.setText("g " + gaz + " y " + yaw + " p " + pitch + " r " + roll);
 
-            if (controller.isTouching) {
-                controllerTouchpadView.setText(
-                        String.format("[%4.2f, %4.2f]", controller.touch.x, controller.touch.y));
-            } else {
-                controllerTouchpadView.setText("[ NO TOUCH ]");
-            }
+        }
 
-            controllerButtonView.setText(String.format("[%s][%s][%s][%s][%s]",
-                    controller.appButtonState ? "A" : " ",
-                    controller.homeButtonState ? "H" : " ",
-                    controller.clickButtonState ? "T" : " ",
-                    controller.volumeUpButtonState ? "+" : " ",
-                    controller.volumeDownButtonState ? "-" : " "));
+        @Override
+        public void move(byte roll, byte pitch, byte yaw, byte gaz) {
+            this.yaw = yaw;
+            this.gaz = gaz;
+            this.pitch = pitch;
+            this.roll = roll;
+            uiHandler.post(this);
+        }
 
-            controllerBatteryView.setText(String.format("[level: %s][charging: %s]",
-                    Controller.BatteryLevels.toString(controller.batteryLevelBucket),
-                    controller.isCharging));
+        @Override
+        public void land() {
+            status = "LANDED";
+            uiHandler.post(this);
+        }
+
+        @Override
+        public void takeOff() {
+            status = "FLYING";
+            uiHandler.post(this);
         }
     }
 }

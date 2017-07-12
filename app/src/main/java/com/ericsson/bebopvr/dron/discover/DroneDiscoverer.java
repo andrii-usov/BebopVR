@@ -95,7 +95,6 @@ public class DroneDiscoverer {
 
                     if (mStartDiscoveryAfterConnection) {
                         startDiscovering();
-                        mStartDiscoveryAfterConnection = false;
                     }
                 }
 
