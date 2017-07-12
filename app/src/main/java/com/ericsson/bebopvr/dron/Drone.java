@@ -191,7 +191,7 @@ public class Drone {
         }
 
         @Override
-        public void takingOff() {
+        public void takeOff() {
             if(canDo()) {
                 deviceController.getFeatureARDrone3().sendPilotingTakeOff();
             }

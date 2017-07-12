@@ -23,7 +23,7 @@ public class DroneServiceImpl implements DroneService {
     }
 
     @Override
-    public void takingOff() {
+    public void takeOff() {
         deviceController.getFeatureARDrone3().sendPilotingTakeOff();
     }
 }
