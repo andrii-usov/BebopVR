@@ -3,7 +3,7 @@ package com.ericsson.bebopvr.dron;
 /**
  * @author valerjanka
  */
-public interface BebopListener {
+public interface DroneService {
 
     /**
      * Move drone according new coordinates.
