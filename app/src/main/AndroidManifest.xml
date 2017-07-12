@@ -10,12 +10,16 @@
         android:supportsRtl="true"
         android:theme="@android:style/Theme.Holo.Light">
         <activity
-            android:name=".ControllerClientActivity"
-            android:screenOrientation="portrait">
+            android:name=".DeviceListActivity"
+            android:screenOrientation="landscape">
             <intent-filter>
                 <action android:name="android.intent.action.MAIN"/>
                 <category android:name="android.intent.category.LAUNCHER"/>
             </intent-filter>
+        </activity>
+        <activity
+            android:name=".ControllerClientActivity"
+            android:screenOrientation="portrait">
         </activity>
     </application>
 
