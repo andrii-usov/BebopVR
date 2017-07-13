@@ -2,4 +2,4 @@
 
 grammar command;
 
-public <item> = takeoff | land | picture;
+public <item> = takeoff | land | picture | flip | start | stop;

@@ -32,6 +32,8 @@ import com.parrot.arsdk.arcontroller.ARCONTROLLER_DEVICE_STATE_ENUM;
 
 import java.io.File;
 import java.io.IOException;
+import java.util.ArrayList;
+import java.util.List;
 
 import edu.cmu.pocketsphinx.Assets;
 import edu.cmu.pocketsphinx.Hypothesis;
@@ -39,7 +41,6 @@ import edu.cmu.pocketsphinx.RecognitionListener;
 import edu.cmu.pocketsphinx.SpeechRecognizer;
 import edu.cmu.pocketsphinx.SpeechRecognizerSetup;
 
-import static android.widget.Toast.makeText;
 
 /**
  * Minimal example demonstrating how to receive and process Daydream controller input. It connects
@@ -70,6 +71,7 @@ public class ControllerClientActivity extends Activity {
 
     private Drone drone;
     private DroneService droneService;
+    private List<DroneService> droneListeners = new ArrayList<>();
 
     private SpeechRecognizer recognizer;
 
@@ -78,6 +80,13 @@ public class ControllerClientActivity extends Activity {
 
     /* Keyword we are looking for to activate menu */
     private static final String KEYPHRASE = "ok drone";
+
+    private String TAKEOFF_COMMAND = "takeoff";
+    private String LAND_COMMAND = "land";
+    private String FLIP_COMMAND = "flip";
+    private String PICTURE_COMMAND = "picture";
+    private String START_RECORDING_COMMAND = "start";
+    private String STOP_RECORDING_COMMAND = "stop";
 
 
 
@@ -100,8 +109,9 @@ public class ControllerClientActivity extends Activity {
 
         // Start the ControllerManager and acquire a Controller object which represents a single
         // physical controller. Bind our listener to the ControllerManager and Controller.
-        EventListener listener = new EventListener();
-        this.droneControllerManager.addDroneService(listener);
+        EventListener eventListener = new EventListener();
+        this.droneControllerManager.addDroneService(eventListener);
+        droneListeners.add(eventListener);
 
         apiStatusView.setText("OK");
 
@@ -111,8 +121,9 @@ public class ControllerClientActivity extends Activity {
 
         drone = new Drone(this);
         droneService = drone.getDroneService();
-        droneControllerManager.addDroneService(droneService);
 
+        droneControllerManager.addDroneService(droneService);
+        droneListeners.add(droneService);
         // This configuration won't be required for normal GVR apps. However, since this sample doesn't
         // use GvrView, it needs pretend to be a VR app in order to receive controller events. The
         // Activity.setVrModeEnabled is only enabled on in N, so this is an GVR-internal utility method
@@ -136,6 +147,12 @@ public class ControllerClientActivity extends Activity {
                 finish();
             }
         }
+
+//        if (recognizer == null) {
+//            runRecognizerSetup();
+//        } else {
+//            recognizer.startListening(KWS_SEARCH);
+//        }
     }
 
     @Override
@@ -145,12 +162,23 @@ public class ControllerClientActivity extends Activity {
                 finish();
             }
         }
+        if (recognizer != null) {
+            recognizer.stop();
+        }
     }
 
     @Override
     protected void onStop() {
         droneControllerManager.stop();
         controllerOrientationView.stopTrackingOrientation();
+        if (drone != null) {
+            if (!drone.disconnect()) {
+                finish();
+            }
+        }
+        if (recognizer != null) {
+            recognizer.stop();
+        }
         super.onStop();
     }
 
@@ -207,6 +235,26 @@ public class ControllerClientActivity extends Activity {
         @Override
         public void flatTrim() {
 
+        }
+
+        @Override
+        public void takeAPicture() {
+            controllerTouchpadView.setText("Picture Taken");
+        }
+
+        @Override
+        public void startRecording() {
+            controllerTouchpadView.setText("Recording started");
+        }
+
+        @Override
+        public void stopRecording() {
+            controllerTouchpadView.setText("Recording stopped");
+        }
+
+        @Override
+        public void doAFlip() {
+            controllerTouchpadView.setText("Flipped");
         }
     }
 
@@ -290,6 +338,34 @@ public class ControllerClientActivity extends Activity {
                     Log.i(TAG,"RESULT: " + text+ " Score " + hypothesis.getBestScore());
                     if ( Integer.valueOf(hypothesis.getBestScore()) > -2000) {
                         apiStatusView.setText(text);
+                        if (TAKEOFF_COMMAND.equals(text)) {
+                            for (DroneService dService: droneListeners) {
+                                dService.takeOff();
+                            }
+                        } else if (LAND_COMMAND.equals(text)) {
+                            for (DroneService dService: droneListeners) {
+                                dService.land();
+                            }
+                        } else if (PICTURE_COMMAND.equals(text)) {
+                            for (DroneService dService: droneListeners) {
+                                dService.takeAPicture();
+                            }
+                        } else if (START_RECORDING_COMMAND.equals(text)) {
+                            for (DroneService dService: droneListeners) {
+                                dService.startRecording();
+                            }
+                        } else if (STOP_RECORDING_COMMAND.equals(text)) {
+                            for (DroneService dService: droneListeners) {
+                                dService.stopRecording();
+                            }
+                        } else if (FLIP_COMMAND.equals(text)) {
+                            for (DroneService dService: droneListeners) {
+                                dService.doAFlip();
+                            }
+                        } else {
+                            apiStatusView.setText("OK Drone");
+                        }
+
                     } else {
                         apiStatusView.setText(" no match");
                     }

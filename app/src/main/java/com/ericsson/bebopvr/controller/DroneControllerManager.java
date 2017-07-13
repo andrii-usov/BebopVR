@@ -103,9 +103,9 @@ public class DroneControllerManager {
 
                         float touch = controller.touch.y;
 
-                        if (touch > 0 && touch < 0.3) {
+                        if (touch > 0 && touch < 0.2) {
                             gaz = 30;
-                        } else if (touch > 0.7 && touch < 1) {
+                        } else if (touch > 0.8 && touch < 1) {
                             gaz = -20;
                         }
 
@@ -116,22 +116,42 @@ public class DroneControllerManager {
                             anglesDiff[i] = startYPR[i] - anglesDiff[i];
                         }
 
-                        if (anglesDiff[0] > 0 && Math.abs(anglesDiff[0]) > 40) {
-                            yaw = 60;
-                        } else if (anglesDiff[0] < 0 && Math.abs(anglesDiff[0]) > 40) {
-                            yaw = -60;
-                        }
+
 
                         if (anglesDiff[1] > 0 && Math.abs(anglesDiff[1]) > 20) {
-                            pitch = 30;
+                            if (Math.abs(anglesDiff[1]) > 45) {
+                                pitch = 80;
+                            } else if (Math.abs(anglesDiff[1]) > 20) {
+                                pitch = 30;
+                            }
                         } else if (anglesDiff[1] < 0 && Math.abs(anglesDiff[1]) > 20) {
-                            pitch = -30;
+                            if (Math.abs(anglesDiff[1]) > 45) {
+                                pitch = -80;
+                            } else if (Math.abs(anglesDiff[1]) > 20) {
+                                pitch = -30;
+                            }
                         }
 
-                        if (anglesDiff[2] > 0 && Math.abs(anglesDiff[2]) > 20) {
-                            roll = 30;
-                        } else if (anglesDiff[2] < 0 && Math.abs(anglesDiff[2]) > 20) {
-                            roll = -30;
+                        if (anglesDiff[2] > 0) {
+                            if (Math.abs(anglesDiff[2]) > 45) {
+                                roll = 80;
+                            } else if (Math.abs(anglesDiff[2]) > 20) {
+                                roll = 30;
+                            }
+                        } else {
+                            if (Math.abs(anglesDiff[2]) > 45) {
+                                roll = -80;
+                            } else if (Math.abs(anglesDiff[2]) > 20) {
+                                roll = -30;
+                            }
+                        }
+
+                        if (roll == 0 || pitch == 0) {
+                            if (anglesDiff[0] > 0 && Math.abs(anglesDiff[0]) > 20) {
+                                yaw = 80;
+                            } else if (anglesDiff[0] < 0 && Math.abs(anglesDiff[0]) > 30) {
+                                yaw = -80;
+                            }
                         }
 
                         for (DroneService bebopListener: bebopListeners) {

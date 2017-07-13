@@ -7,6 +7,8 @@ import android.support.annotation.NonNull;
 import android.util.Log;
 
 import com.ericsson.bebopvr.DeviceListActivity;
+import com.parrot.arsdk.arcommands.ARCOMMANDS_ARDRONE3_ANIMATIONS_FLIP_DIRECTION_ENUM;
+import com.parrot.arsdk.arcommands.ARCOMMANDS_ARDRONE3_MEDIARECORD_VIDEOV2_RECORD_ENUM;
 import com.parrot.arsdk.arcontroller.ARCONTROLLER_DEVICE_STATE_ENUM;
 import com.parrot.arsdk.arcontroller.ARCONTROLLER_DICTIONARY_KEY_ENUM;
 import com.parrot.arsdk.arcontroller.ARCONTROLLER_ERROR_ENUM;
@@ -207,6 +209,34 @@ public class Drone {
         public void flatTrim() {
             if (canDo()) {
                 deviceController.getFeatureARDrone3().sendPilotingFlatTrim();
+            }
+        }
+
+        @Override
+        public void takeAPicture() {
+            if (canDo()) {
+                deviceController.getFeatureARDrone3().sendMediaRecordPictureV2();
+            }
+        }
+
+        @Override
+        public void startRecording() {
+            if (canDo()) {
+                deviceController.getFeatureARDrone3().sendMediaRecordVideoV2(ARCOMMANDS_ARDRONE3_MEDIARECORD_VIDEOV2_RECORD_ENUM.ARCOMMANDS_ARDRONE3_MEDIARECORD_VIDEOV2_RECORD_START);
+            }
+        }
+
+        @Override
+        public void stopRecording() {
+            if (canDo()) {
+                deviceController.getFeatureARDrone3().sendMediaRecordVideoV2(ARCOMMANDS_ARDRONE3_MEDIARECORD_VIDEOV2_RECORD_ENUM.ARCOMMANDS_ARDRONE3_MEDIARECORD_VIDEOV2_RECORD_STOP);
+            }
+        }
+
+        @Override
+        public void doAFlip() {
+            if (canDo()) {
+                deviceController.getFeatureARDrone3().sendAnimationsFlip(ARCOMMANDS_ARDRONE3_ANIMATIONS_FLIP_DIRECTION_ENUM.ARCOMMANDS_ARDRONE3_ANIMATIONS_FLIP_DIRECTION_BACK);
             }
         }
 
