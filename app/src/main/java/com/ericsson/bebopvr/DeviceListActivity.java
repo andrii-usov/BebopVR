@@ -78,7 +78,7 @@ public class DeviceListActivity extends AppCompatActivity {
                 switch (product) {
                     case ARDISCOVERY_PRODUCT_ARDRONE:
                     case ARDISCOVERY_PRODUCT_BEBOP_2:
-                        intent = new Intent(DeviceListActivity.this, ControllerClientActivity.class);
+                        intent = new Intent(DeviceListActivity.this, WatchVideoActivity.class);
                         break;
                     default:
                         Log.e(TAG, "The type " + product + " is not supported by this sample");
