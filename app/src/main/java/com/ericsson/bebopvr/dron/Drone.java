@@ -80,6 +80,8 @@ public class Drone {
         boolean success = false;
         if ((deviceController != null) && (ARCONTROLLER_DEVICE_STATE_ENUM.ARCONTROLLER_DEVICE_STATE_STOPPED.equals(state))) {
             ARCONTROLLER_ERROR_ENUM error = deviceController.start();
+            deviceController.getFeatureARDrone3().sendMediaStreamingVideoEnable((byte)1);
+            deviceController.getFeatureARDrone3().sendSpeedSettingsHullProtection((byte)1);
             if (error == ARCONTROLLER_ERROR_ENUM.ARCONTROLLER_OK) {
                 success = true;
             }
