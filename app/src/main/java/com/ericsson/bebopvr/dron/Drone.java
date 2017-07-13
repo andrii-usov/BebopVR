@@ -36,6 +36,7 @@ public class Drone {
     private Activity context;
     private ARDiscoveryDeviceService deviceService;
     private ARDeviceController deviceController;
+    private int enabled = 0;
 
     public Drone(Activity context) {
         this.context = context;
@@ -67,6 +68,7 @@ public class Drone {
 
     public void dispose()
     {
+        enabled = 0;
         if (deviceController != null)
             deviceController.dispose();
     }
@@ -78,10 +80,9 @@ public class Drone {
      */
     public boolean connect() {
         boolean success = false;
+        enabled = 0;
         if ((deviceController != null) && (ARCONTROLLER_DEVICE_STATE_ENUM.ARCONTROLLER_DEVICE_STATE_STOPPED.equals(state))) {
             ARCONTROLLER_ERROR_ENUM error = deviceController.start();
-            deviceController.getFeatureARDrone3().sendMediaStreamingVideoEnable((byte)1);
-            deviceController.getFeatureARDrone3().sendSpeedSettingsHullProtection((byte)1);
             if (error == ARCONTROLLER_ERROR_ENUM.ARCONTROLLER_OK) {
                 success = true;
             }
@@ -95,6 +96,7 @@ public class Drone {
      *              Returning true doesn't mean that device is disconnected.
      */
     public boolean disconnect() {
+        enabled = 0;
         boolean success = false;
         if ((deviceController != null) && (ARCONTROLLER_DEVICE_STATE_ENUM.ARCONTROLLER_DEVICE_STATE_RUNNING.equals(state))) {
             ARCONTROLLER_ERROR_ENUM error = deviceController.stop();
@@ -137,6 +139,12 @@ public class Drone {
         public void onStateChanged(ARDeviceController deviceController, ARCONTROLLER_DEVICE_STATE_ENUM newState, ARCONTROLLER_ERROR_ENUM error) {
             Log.d(TAG, "onStateChanged: " + newState + ", error: " + error);
             state = newState;
+            if (ARCONTROLLER_DEVICE_STATE_ENUM.ARCONTROLLER_DEVICE_STATE_RUNNING.equals(state) && enabled < 5) {
+                ++enabled;
+                ARCONTROLLER_ERROR_ENUM res = deviceController.getFeatureARDrone3().sendMediaStreamingVideoEnable((byte) 1);
+                Log.d(TAG, "Enabling video streaming " + res);
+                deviceController.getFeatureARDrone3().sendSpeedSettingsHullProtection((byte)1);
+            }
             for(DroneListener droneListener : droneListeners) {
                 droneListener.onStateChanged(newState);
             }
