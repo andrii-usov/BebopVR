@@ -21,6 +21,7 @@ package com.ericsson.bebopvr;
  */
 
 import android.app.Activity;
+import android.media.MediaCodec;
 import android.net.Uri;
 import android.opengl.GLSurfaceView;
 import android.os.Bundle;
@@ -32,12 +33,23 @@ import android.view.MotionEvent;
 import android.view.Surface;
 import android.view.View;
 
-import com.ericsson.bebopvr.dron.video.VideoExoPlayer2;
+import com.ericsson.bebopvr.dron.Drone;
+import com.ericsson.bebopvr.dron.DroneListener;
+import com.ericsson.bebopvr.dron.video.BebopVideoView;
 import com.ericsson.bebopvr.dron.video.VideoSceneRenderer;
 import com.google.android.exoplayer2.drm.UnsupportedDrmException;
 import com.google.vr.ndk.base.AndroidCompat;
 import com.google.vr.ndk.base.BufferViewport;
 import com.google.vr.ndk.base.GvrLayout;
+import com.parrot.arsdk.arcontroller.ARCONTROLLER_DEVICE_STATE_ENUM;
+import com.parrot.arsdk.arcontroller.ARCONTROLLER_DICTIONARY_KEY_ENUM;
+import com.parrot.arsdk.arcontroller.ARControllerCodec;
+import com.parrot.arsdk.arcontroller.ARControllerDictionary;
+import com.parrot.arsdk.arcontroller.ARFrame;
+
+import java.io.IOException;
+import java.nio.ByteBuffer;
+import java.util.concurrent.locks.Lock;
 
 /**
  * Simple activity for video playback using the Asynchronous Reprojection Video Surface API. For a
@@ -48,14 +60,14 @@ import com.google.vr.ndk.base.GvrLayout;
  * VideoSceneRenderer} adds a {@link BufferViewport} per eye to describe where video should be
  * drawn.
  */
-public class WatchVideoActivity extends Activity {
+public class WatchVideoActivity extends Activity implements DroneListener {
     private static final String TAG = WatchVideoActivity.class.getSimpleName();
 
     private GvrLayout gvrLayout;
-    private GLSurfaceView surfaceView;
+    private BebopVideoView surfaceView;
     private VideoSceneRenderer renderer;
-    private VideoExoPlayer2 videoPlayer;
     private boolean hasFirstFrame;
+    private Drone drone;
 
     // Transform a quad that fills the clip box at Z=0 to a 16:9 screen at Z=-4. Note that the matrix
     // is column-major, so the translation is on the last line in this representation.
@@ -71,17 +83,6 @@ public class WatchVideoActivity extends Activity {
                 @Override
                 public void run() {
                     gvrLayout.getGvrApi().refreshViewerProfile();
-                }
-            };
-
-    // Runnable to play/pause the video player. Must be run on the UI thread.
-    private final Runnable triggerRunnable =
-            new Runnable() {
-                @Override
-                public void run() {
-                    if (videoPlayer != null) {
-                        videoPlayer.togglePause();
-                    }
                 }
             };
 
@@ -104,8 +105,10 @@ public class WatchVideoActivity extends Activity {
         AndroidCompat.setSustainedPerformanceMode(this, true);
         AndroidCompat.setVrModeEnabled(this, true);
 
+        drone = new Drone(this);
+        drone.addDroneListener(this);
         gvrLayout = new GvrLayout(this);
-        surfaceView = new GLSurfaceView(this);
+        surfaceView = new BebopVideoView(this);
         surfaceView.setEGLContextClientVersion(2);
         surfaceView.setEGLConfigChooser(5, 6, 5, 0, 0, 0);
         gvrLayout.setPresentationView(surfaceView);
@@ -122,9 +125,9 @@ public class WatchVideoActivity extends Activity {
                         // is started when the Surface is set. Note that this callback is *asynchronous* with
                         // respect to the Surface becoming available, in which case videoPlayer may be null due
                         // to the Activity having been stopped.
-                        if (videoPlayer != null) {
-                            videoPlayer.setSurface(surface);
-                        }
+//                        if (videoPlayer != null) {
+//                            videoPlayer.setSurface(surface);
+//                        }
                     }
 
                     @Override
@@ -132,7 +135,7 @@ public class WatchVideoActivity extends Activity {
                         // If this is the first frame, and the Activity is still in the foreground, signal to
                         // remove the loading splash screen, and draw alpha 0 in the color buffer where the
                         // video will be drawn by the GvrApi.
-                        if (!hasFirstFrame && videoPlayer != null) {
+                        if (!hasFirstFrame) {
                             surfaceView.queueEvent(
                                     new Runnable() {
                                         @Override
@@ -166,20 +169,6 @@ public class WatchVideoActivity extends Activity {
             // The ExternalSurface buffer the GvrApi should reference when drawing the video buffer. This
             // must be called after enabling the Async Reprojection video surface.
             renderer.setVideoSurfaceId(gvrLayout.getAsyncReprojectionVideoSurfaceId());
-
-            // Simulate cardboard trigger to play/pause video playback.
-            gvrLayout.enableCardboardTriggerEmulation(triggerRunnable);
-            surfaceView.setOnTouchListener(
-                    new View.OnTouchListener() {
-                        @Override
-                        public boolean onTouch(View view, MotionEvent event) {
-                            if (event.getActionMasked() == MotionEvent.ACTION_DOWN) {
-                                triggerRunnable.run();
-                                return true;
-                            }
-                            return false;
-                        }
-                    });
         }
 
         // Set the renderer and start the app's GL thread.
@@ -189,26 +178,11 @@ public class WatchVideoActivity extends Activity {
     }
 
     private void initVideoPlayer() {
-        videoPlayer = new VideoExoPlayer2(getApplication());
-        Uri streamUri;
-        String drmVideoId = null;
-
-        // Unprotected video, does not require a secure path for playback.
-        streamUri = Uri.parse("https://storage.googleapis.com/wvmedia/clear/h264/tears/tears.mpd");
-
-        try {
-            videoPlayer.initPlayer(streamUri);
-        } catch (UnsupportedDrmException e) {
-            Log.e(TAG, "Error initializing video player", e);
-        }
     }
 
     @Override
     protected void onStart() {
         super.onStart();
-        if (videoPlayer == null) {
-            initVideoPlayer();
-        }
         hasFirstFrame = false;
         surfaceView.queueEvent(
                 new Runnable() {
@@ -223,31 +197,29 @@ public class WatchVideoActivity extends Activity {
         gvrLayout.onResume();
         // Refresh the viewer profile in case the viewer params were changed.
         surfaceView.queueEvent(refreshViewerProfileRunnable);
+
+        if ((drone != null) && !(ARCONTROLLER_DEVICE_STATE_ENUM.ARCONTROLLER_DEVICE_STATE_RUNNING.equals(drone.getState()))) {
+            // if the connection to the Bebop fails, finish the activity
+            if (!drone.connect()) {
+                // TODO display message
+                Log.d(TAG, "Drone was not initialized");
+                finish();
+            }
+        }
     }
 
     @Override
     protected void onResume() {
         super.onResume();
-        if (videoPlayer.isPaused()) {
-            videoPlayer.play();
-        }
     }
 
     @Override
     protected void onPause() {
-        // Pause video playback. The video Surface may be detached before onStop() is called,
-        // but will remain valid if the activity life-cycle returns to onResume(). Pause the
-        // player to avoid dropping video frames.
-        videoPlayer.pause();
         super.onPause();
     }
 
     @Override
     protected void onStop() {
-        if (videoPlayer != null) {
-            videoPlayer.releasePlayer();
-            videoPlayer = null;
-        }
         // Pause the gvrLayout here. The video Surface is guaranteed to be detached and not available
         // after gvrLayout.onPause(). We pause from onStop() to avoid needing to wait for an available
         // video Surface following brief onPause()/onResume() events. Wait for the new
@@ -259,6 +231,7 @@ public class WatchVideoActivity extends Activity {
     @Override
     protected void onDestroy() {
         gvrLayout.shutdown();
+        drone.dispose();
         super.onDestroy();
     }
 
@@ -298,10 +271,6 @@ public class WatchVideoActivity extends Activity {
                                 | View.SYSTEM_UI_FLAG_IMMERSIVE_STICKY);
     }
 
-    protected VideoExoPlayer2 getVideoExoPlayer() {
-        return videoPlayer;
-    }
-
     /**
      * @return {@code true} if the first video frame has played
      **/
@@ -309,5 +278,26 @@ public class WatchVideoActivity extends Activity {
         return hasFirstFrame;
     }
 
+    @Override
+    public void onStateChanged(ARCONTROLLER_DEVICE_STATE_ENUM state) {
+
+    }
+
+    @Override
+    public void onCommandReceived(ARCONTROLLER_DICTIONARY_KEY_ENUM commandKey, ARControllerDictionary elementDictionary) {
+
+    }
+
+    @Override
+    public void configureDecoder(ARControllerCodec codec) {
+        Log.d(TAG, "Configure decoder [this.hasFirstFrame" + this.hasFirstFrame + "]");
+        surfaceView.configureDecoder(codec);
+    }
+
+    @Override
+    public void onFrameReceived(ARFrame frame) {
+        Log.d(TAG, "On Frame Received [this.hasFirstFrame" + this.hasFirstFrame + "]");
+        surfaceView.displayFrame(frame);
+    }
 }
 
