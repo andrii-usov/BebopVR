@@ -1,6 +1,7 @@
 package com.ericsson.bebopvr.controller;
 
 import android.content.Context;
+import android.os.SystemClock;
 
 import com.ericsson.bebopvr.dron.DroneService;
 import com.google.vr.sdk.controller.Controller;
@@ -79,13 +80,15 @@ public class DroneControllerManager {
             if (controllerState == Controller.ConnectionStates.CONNECTED
                     && apiStatus == ControllerManager.ApiStatus.OK) {
 
-                if (isTakeOffButtonPressed()) {
+                if (isLandButtonPressed()) {
                     for (DroneService bebopListener: bebopListeners) {
-                        bebopListener.takeOff();
-                    }
-                } else if (isLandButtonPressed()) {
-                    for (DroneService bebopListener: bebopListeners) {
+                        bebopListener.move((byte)0,(byte)0,(byte)0,(byte)0);
                         bebopListener.land();
+                    }
+                } else if (isTakeOffButtonPressed()) {
+                    for (DroneService bebopListener: bebopListeners) {
+                        bebopListener.flatTrim();
+                        bebopListener.takeOff();
                     }
                 } else if (isNavigating()) {
                     if (!isNavigating) {
@@ -113,22 +116,42 @@ public class DroneControllerManager {
                             anglesDiff[i] = startYPR[i] - anglesDiff[i];
                         }
 
-                        if (anglesDiff[0] > 0 && Math.abs(anglesDiff[0]) > 20) {
-                            yaw = 30;
-                        } else if (anglesDiff[0] < 0 && Math.abs(anglesDiff[0]) > 20) {
-                            yaw = -30;
-                        }
 
-                        if (anglesDiff[1] > 0 && Math.abs(anglesDiff[1]) > 15) {
-                            pitch = 30;
+
+                        if (anglesDiff[1] > 0 && Math.abs(anglesDiff[1]) > 20) {
+                            if (Math.abs(anglesDiff[1]) > 45) {
+                                pitch = 80;
+                            } else if (Math.abs(anglesDiff[1]) > 20) {
+                                pitch = 30;
+                            }
                         } else if (anglesDiff[1] < 0 && Math.abs(anglesDiff[1]) > 20) {
-                            pitch = -30;
+                            if (Math.abs(anglesDiff[1]) > 45) {
+                                pitch = -80;
+                            } else if (Math.abs(anglesDiff[1]) > 20) {
+                                pitch = -30;
+                            }
                         }
 
-                        if (anglesDiff[2] > 0 && Math.abs(anglesDiff[2]) > 15) {
-                            roll = 30;
-                        } else if (anglesDiff[2] < 0 && Math.abs(anglesDiff[2]) > 20) {
-                            roll = -30;
+                        if (anglesDiff[2] > 0) {
+                            if (Math.abs(anglesDiff[2]) > 45) {
+                                roll = 80;
+                            } else if (Math.abs(anglesDiff[2]) > 20) {
+                                roll = 30;
+                            }
+                        } else {
+                            if (Math.abs(anglesDiff[2]) > 45) {
+                                roll = -80;
+                            } else if (Math.abs(anglesDiff[2]) > 20) {
+                                roll = -30;
+                            }
+                        }
+
+                        if (roll == 0 || pitch == 0) {
+                            if (anglesDiff[0] > 0 && Math.abs(anglesDiff[0]) > 20) {
+                                yaw = 80;
+                            } else if (anglesDiff[0] < 0 && Math.abs(anglesDiff[0]) > 30) {
+                                yaw = -80;
+                            }
                         }
 
                         for (DroneService bebopListener: bebopListeners) {
@@ -142,7 +165,8 @@ public class DroneControllerManager {
                         bebopListener.move((byte)0,(byte)0,(byte)0,(byte)0);
                     }
                 }
-        }
+                SystemClock.sleep(10);
+            }
 
         }
 
@@ -159,15 +183,7 @@ public class DroneControllerManager {
         }
 
         public boolean isLandButtonPressed() {
-            if (!controller.isTouching
-                    && !controller.clickButtonState
-                    && !controller.appButtonState
-                    && !controller.homeButtonState
-                    && !controller.volumeUpButtonState
-                    && controller.volumeDownButtonState) {
-                return true;
-            }
-            return false;
+            return controller.volumeDownButtonState;
         }
 
         public boolean isNavigating() {
@@ -183,13 +199,11 @@ public class DroneControllerManager {
         }
 
         public boolean isFreezing() {
-            if (!controller.isTouching
-                    && !controller.clickButtonState
+            if (!controller.clickButtonState
                     && !controller.appButtonState
                     && !controller.homeButtonState
                     && !controller.volumeUpButtonState
-                    && !controller.volumeDownButtonState
-                    && isNavigating) {
+                    && !controller.volumeDownButtonState) {
                 return true;
             }
             return false;

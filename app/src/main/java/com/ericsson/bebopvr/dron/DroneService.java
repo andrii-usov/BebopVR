@@ -23,4 +23,14 @@ public interface DroneService {
     void land();
 
     void takeOff();
+
+    void flatTrim();
+
+    void takeAPicture();
+
+    void startRecording();
+
+    void stopRecording();
+
+    void doAFlip();
 }

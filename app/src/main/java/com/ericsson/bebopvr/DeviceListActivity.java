@@ -110,7 +110,11 @@ public class DeviceListActivity extends AppCompatActivity {
                     permissionsToRequest.toArray(new String[permissionsToRequest.size()]),
                     REQUEST_CODE_PERMISSIONS_REQUEST);
         }
+
+
     }
+
+
 
     @Override
     protected void onResume()
