@@ -6,11 +6,11 @@ package com.ericsson.bebopvr.dron;
 public interface DroneService {
 
     /**
-     * Move drone according new coordinates.
-     * All values are from [-100,100]
-     * Roll: Go Right = 50, Go Left = -50. Rotation around the front-to-back axis
-     * Pitch: Forward = 50, Backward = -10. Rotation around the side-to-side axis
-     * Yaw: Rotate Right = 50, Rotate left = -50. Rotation around the vertical axis (horizontal)
+     * Move drone according new coordinates.<br/>
+     * All values are from [-100,100]<br/>
+     * Roll: Go Right = 50, Go Left = -50. Rotation around the front-to-back axis<br/>
+     * Pitch: Forward = 50, Backward = -50. Rotation around the side-to-side axis<br/>
+     * Yaw: Rotate Right = 50, Rotate left = -50. Rotation around the vertical axis (horizontal)<br/>
      * Gaz: Go Up = 50, Go Down = -50.
      *
      * @param roll

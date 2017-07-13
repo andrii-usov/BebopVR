@@ -179,7 +179,11 @@ public class Drone {
         @Override
         public void move(byte roll, byte pitch, byte yaw, byte gaz) {
             if(canDo()) {
-                deviceController.getFeatureARDrone3().setPilotingPCMD((byte) 1, roll, pitch, yaw, gaz, 0);
+                if( (roll == 0 && pitch == 0 ) || yaw != 0 || gaz != 0) {
+                    deviceController.getFeatureARDrone3().setPilotingPCMD((byte) 0, roll, pitch, yaw, gaz, 0);
+                } else {
+                    deviceController.getFeatureARDrone3().setPilotingPCMD((byte) 1, roll, pitch, yaw, gaz, 0);
+                }
             }
         }
 
