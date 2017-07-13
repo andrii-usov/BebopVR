@@ -203,6 +203,13 @@ public class Drone {
             }
         }
 
+        @Override
+        public void flatTrim() {
+            if (canDo()) {
+                deviceController.getFeatureARDrone3().sendPilotingFlatTrim();
+            }
+        }
+
         private boolean canDo() {
             return (deviceController != null) && (state.equals(ARCONTROLLER_DEVICE_STATE_ENUM.ARCONTROLLER_DEVICE_STATE_RUNNING));
         }

@@ -92,6 +92,7 @@ public class DroneDiscoverer {
                 @Override
                 public void onServiceConnected(ComponentName name, IBinder service) {
                     mArdiscoveryService = ((ARDiscoveryService.LocalBinder) service).getService();
+                    mArdiscoveryService.setUsePublisher(true);
 
                     if (mStartDiscoveryAfterConnection) {
                         startDiscovering();
@@ -147,7 +148,7 @@ public class DroneDiscoverer {
         if (mArdiscoveryService != null) {
             Log.i(TAG, "Start discovering");
             mDiscoveryListener.onServicesDevicesListUpdated();
-            mArdiscoveryService.startWifiDiscovering();
+            mArdiscoveryService.start();
             mStartDiscoveryAfterConnection = false;
             Log.i(TAG, "Finished discovering");
         } else {

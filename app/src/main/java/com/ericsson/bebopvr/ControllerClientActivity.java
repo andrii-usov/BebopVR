@@ -17,8 +17,11 @@
 package com.ericsson.bebopvr;
 
 import android.app.Activity;
+import android.os.AsyncTask;
 import android.os.Bundle;
 import android.os.Handler;
+import android.util.Log;
+import android.view.WindowManager;
 import android.widget.TextView;
 
 import com.ericsson.bebopvr.controller.DroneControllerManager;
@@ -27,6 +30,17 @@ import com.ericsson.bebopvr.dron.DroneService;
 import com.google.vr.sdk.base.AndroidCompat;
 import com.parrot.arsdk.arcontroller.ARCONTROLLER_DEVICE_STATE_ENUM;
 
+import java.io.File;
+import java.io.IOException;
+
+import edu.cmu.pocketsphinx.Assets;
+import edu.cmu.pocketsphinx.Hypothesis;
+import edu.cmu.pocketsphinx.RecognitionListener;
+import edu.cmu.pocketsphinx.SpeechRecognizer;
+import edu.cmu.pocketsphinx.SpeechRecognizerSetup;
+
+import static android.widget.Toast.makeText;
+
 /**
  * Minimal example demonstrating how to receive and process Daydream controller input. It connects
  * to a Daydream Controller and displays a simple graphical and textual representation of the
@@ -34,7 +48,7 @@ import com.parrot.arsdk.arcontroller.ARCONTROLLER_DEVICE_STATE_ENUM;
  */
 public class ControllerClientActivity extends Activity {
 
-    private static final String TAG = "ControllerClientActivity";
+    private static final String TAG = "ControllerActivity";
 
     // These TextViews display controller events.
     private TextView apiStatusView;
@@ -56,6 +70,15 @@ public class ControllerClientActivity extends Activity {
 
     private Drone drone;
     private DroneService droneService;
+
+    private SpeechRecognizer recognizer;
+
+    private static final String KWS_SEARCH = "wakeup";
+    private static final String COMMAND_SEARCH = "command";
+
+    /* Keyword we are looking for to activate menu */
+    private static final String KEYPHRASE = "ok drone";
+
 
 
     @Override
@@ -88,6 +111,7 @@ public class ControllerClientActivity extends Activity {
 
         drone = new Drone(this);
         droneService = drone.getDroneService();
+        droneControllerManager.addDroneService(droneService);
 
         // This configuration won't be required for normal GVR apps. However, since this sample doesn't
         // use GvrView, it needs pretend to be a VR app in order to receive controller events. The
@@ -96,6 +120,9 @@ public class ControllerClientActivity extends Activity {
         //
         // If this sample is compiled with the N SDK, Activity.setVrModeEnabled can be called directly.
         AndroidCompat.setVrModeEnabled(this, true);
+        getWindow().addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON);
+
+        runRecognizerSetup();
     }
 
     @Override
@@ -160,18 +187,137 @@ public class ControllerClientActivity extends Activity {
             this.pitch = pitch;
             this.roll = roll;
             uiHandler.post(this);
+            Log.i(TAG, "move");
         }
 
         @Override
         public void land() {
             status = "LANDED";
             uiHandler.post(this);
+            Log.i(TAG, "Land");
         }
 
         @Override
         public void takeOff() {
             status = "FLYING";
             uiHandler.post(this);
+            Log.i(TAG, "Takeoff");
         }
+
+        @Override
+        public void flatTrim() {
+
+        }
+    }
+
+    private void runRecognizerSetup() {
+        // Recognizer initialization is a time-consuming and it involves IO,
+        // so we execute it in async task
+        new AsyncTask<Void, Void, Exception>() {
+            @Override
+            protected Exception doInBackground(Void... params) {
+                try {
+                    Assets assets = new Assets(ControllerClientActivity.this);
+                    File assetDir = assets.syncAssets();
+                    setupRecognizer(assetDir);
+                } catch (IOException e) {
+                    return e;
+                }
+                return null;
+            }
+
+            @Override
+            protected void onPostExecute(Exception result) {
+                if (result != null) {
+                    Log.i(TAG, "Failed to init recognizer " + result);
+                } else {
+                    switchSearch(KWS_SEARCH);
+                }
+            }
+        }.execute();
+    }
+
+    private void switchSearch(String searchName) {
+        recognizer.stop();
+
+        // If we are not spotting, start listening with timeout (10000 ms or 10 seconds).
+        if (searchName.equals(KWS_SEARCH))
+            recognizer.startListening(searchName);
+        else
+            recognizer.startListening(searchName, 10000);
+
+    }
+
+    private void setupRecognizer(File assetsDir) throws IOException {
+        // The recognizer can be configured to perform multiple searches
+        // of different kind and switch between them
+
+        recognizer = SpeechRecognizerSetup.defaultSetup()
+                .setAcousticModel(new File(assetsDir, "en-us-ptm"))
+                .setDictionary(new File(assetsDir, "cmudict-en-us.dict"))
+
+                //.setRawLogDir(assetsDir) // To disable logging of raw audio comment out this call (takes a lot of space on the device)
+
+                .getRecognizer();
+        recognizer.addListener(new RecognitionListener() {
+            @Override
+            public void onBeginningOfSpeech() {
+
+            }
+
+            @Override
+            public void onEndOfSpeech() {
+                if (!recognizer.getSearchName().equals(KWS_SEARCH))
+                    switchSearch(KWS_SEARCH);
+            }
+
+            @Override
+            public void onPartialResult(Hypothesis hypothesis) {
+                if (hypothesis == null)
+                    return;
+
+                String text = hypothesis.getHypstr();
+                if (text.equals(KEYPHRASE)) {
+                    switchSearch(COMMAND_SEARCH);
+                }
+            }
+
+            @Override
+            public void onResult(Hypothesis hypothesis) {
+                Log.i(TAG,"on result");
+                if (hypothesis != null) {
+                    String text = hypothesis.getHypstr();
+                    Log.i(TAG,"RESULT: " + text+ " Score " + hypothesis.getBestScore());
+                    if ( Integer.valueOf(hypothesis.getBestScore()) > -2000) {
+                        apiStatusView.setText(text);
+                    } else {
+                        apiStatusView.setText(" no match");
+                    }
+                }
+            }
+
+            @Override
+            public void onError(Exception e) {
+                Log.i(TAG, "ERROR " + e.getMessage() );
+            }
+
+            @Override
+            public void onTimeout() {
+                switchSearch(KWS_SEARCH);
+            }
+        });
+
+        /** In your application you might not need to add all those searches.
+         * They are added here for demonstration. You can leave just one.
+         */
+
+        // Create keyword-activation search.
+        recognizer.addKeyphraseSearch(KWS_SEARCH, KEYPHRASE);
+
+        // Create grammar-based search for selection between demos
+        File commandGrammar = new File(assetsDir, "command.gram");
+        recognizer.addGrammarSearch(COMMAND_SEARCH, commandGrammar);
+
+
     }
 }

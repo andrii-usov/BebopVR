@@ -23,4 +23,6 @@ public interface DroneService {
     void land();
 
     void takeOff();
+
+    void flatTrim();
 }
