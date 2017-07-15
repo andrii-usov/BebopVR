@@ -6,6 +6,7 @@ import android.media.MediaFormat;
 import android.opengl.GLSurfaceView;
 import android.util.AttributeSet;
 import android.util.Log;
+import android.view.Surface;
 import android.view.SurfaceHolder;
 import android.view.SurfaceView;
 
@@ -18,12 +19,13 @@ import java.nio.ByteBuffer;
 import java.util.concurrent.locks.Lock;
 import java.util.concurrent.locks.ReentrantLock;
 
-public class BebopVideoView extends GLSurfaceView implements SurfaceHolder.Callback {
+public class BebopVideoCodec {
 
-    private static final String TAG = "BebopVideoView";
+    private static final String TAG = "BebopVideoCodec";
     private static final String VIDEO_MIME_TYPE = "video/avc";
     private static final int VIDEO_DEQUEUE_TIMEOUT = 33000;
 
+    private Surface surface;
     private MediaCodec mMediaCodec;
     private Lock mReadyLock;
     private boolean mIsCodecConfigured = false;
@@ -35,20 +37,14 @@ public class BebopVideoView extends GLSurfaceView implements SurfaceHolder.Callb
     private static final int VIDEO_WIDTH = 640;
     private static final int VIDEO_HEIGHT = 368;
 
-    public BebopVideoView(Context context) {
-        super(context);
-        customInit();
-    }
-
-    private void customInit() {
+    public BebopVideoCodec() {
         mReadyLock = new ReentrantLock();
-        getHolder().addCallback(this);
     }
 
     public void displayFrame(ARFrame frame) {
         mReadyLock.lock();
 
-        if ((mMediaCodec != null)) {
+        if ((mMediaCodec != null && this.surface != null)) {
             if (mIsCodecConfigured) {
                 // Here we have either a good PFrame, or an IFrame
                 int index = -1;
@@ -101,18 +97,25 @@ public class BebopVideoView extends GLSurfaceView implements SurfaceHolder.Callb
     public void configureDecoder(ARControllerCodec codec) {
         mReadyLock.lock();
 
-        if (codec.getType() == ARCONTROLLER_STREAM_CODEC_TYPE_ENUM.ARCONTROLLER_STREAM_CODEC_TYPE_H264) {
-            ARControllerCodec.H264 codecH264 = codec.getAsH264();
+        if (this.surface != null && !this.mIsCodecConfigured) {
+            if (codec.getType() == ARCONTROLLER_STREAM_CODEC_TYPE_ENUM.ARCONTROLLER_STREAM_CODEC_TYPE_H264) {
+                ARControllerCodec.H264 codecH264 = codec.getAsH264();
 
-            mSpsBuffer = ByteBuffer.wrap(codecH264.getSps().getByteData());
-            mPpsBuffer = ByteBuffer.wrap(codecH264.getPps().getByteData());
-        }
+                mSpsBuffer = ByteBuffer.wrap(codecH264.getSps().getByteData());
+                mPpsBuffer = ByteBuffer.wrap(codecH264.getPps().getByteData());
+            }
 
-        if ((mMediaCodec != null) && (mSpsBuffer != null)) {
-            configureMediaCodec();
+            if ((mMediaCodec != null) && (mSpsBuffer != null)) {
+                configureMediaCodec();
+            }
         }
 
         mReadyLock.unlock();
+    }
+
+    public void setSurface(Surface surface) {
+        this.surface = surface;
+        initMediaCodec(VIDEO_MIME_TYPE);
     }
 
     private void configureMediaCodec() {
@@ -121,29 +124,30 @@ public class BebopVideoView extends GLSurfaceView implements SurfaceHolder.Callb
         format.setByteBuffer("csd-0", mSpsBuffer);
         format.setByteBuffer("csd-1", mPpsBuffer);
 
-        mMediaCodec.configure(format, getHolder().getSurface(), null, 0);
+        mMediaCodec.configure(format, this.surface, null, 0);
         mMediaCodec.start();
 
         if (android.os.Build.VERSION.SDK_INT < android.os.Build.VERSION_CODES.LOLLIPOP) {
             mBuffers = mMediaCodec.getInputBuffers();
         }
-
         mIsCodecConfigured = true;
     }
 
     private void initMediaCodec(String type) {
-        try {
-            mMediaCodec = MediaCodec.createDecoderByType(type);
-        } catch (IOException e) {
-            Log.e(TAG, "Exception", e);
-        }
+        if ( !this.mIsCodecConfigured ) {
+            try {
+                mMediaCodec = MediaCodec.createDecoderByType(type);
+            } catch (IOException e) {
+                Log.e(TAG, "Exception", e);
+            }
 
-        if ((mMediaCodec != null) && (mSpsBuffer != null)) {
-            configureMediaCodec();
+            if ((mMediaCodec != null) && (mSpsBuffer != null)) {
+                configureMediaCodec();
+            }
         }
     }
 
-    private void releaseMediaCodec() {
+    public void releaseMediaCodec() {
         if (mMediaCodec != null) {
             if (mIsCodecConfigured) {
                 mMediaCodec.stop();
@@ -154,22 +158,4 @@ public class BebopVideoView extends GLSurfaceView implements SurfaceHolder.Callb
         }
     }
 
-    @Override
-    public void surfaceCreated(SurfaceHolder holder) {
-        mReadyLock.lock();
-        initMediaCodec(VIDEO_MIME_TYPE);
-        mReadyLock.unlock();
-    }
-
-    @Override
-    public void surfaceChanged(SurfaceHolder holder, int format, int width, int height) {
-
-    }
-
-    @Override
-    public void surfaceDestroyed(SurfaceHolder holder) {
-        mReadyLock.lock();
-        releaseMediaCodec();
-        mReadyLock.unlock();
-    }
 }
