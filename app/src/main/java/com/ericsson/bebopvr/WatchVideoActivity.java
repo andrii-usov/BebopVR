@@ -30,10 +30,13 @@ import android.view.KeyEvent;
 import android.view.Surface;
 import android.view.View;
 
+import com.ericsson.bebopvr.controller.DroneControllerManager;
 import com.ericsson.bebopvr.dron.Drone;
 import com.ericsson.bebopvr.dron.DroneListener;
+import com.ericsson.bebopvr.dron.DroneService;
 import com.ericsson.bebopvr.dron.video.BebopVideoCodec;
 import com.ericsson.bebopvr.dron.video.VideoSceneRenderer;
+import com.ericsson.bebopvr.speech.SpeechRecognitionManager;
 import com.google.vr.ndk.base.AndroidCompat;
 import com.google.vr.ndk.base.BufferViewport;
 import com.google.vr.ndk.base.GvrLayout;
@@ -42,6 +45,9 @@ import com.parrot.arsdk.arcontroller.ARCONTROLLER_DICTIONARY_KEY_ENUM;
 import com.parrot.arsdk.arcontroller.ARControllerCodec;
 import com.parrot.arsdk.arcontroller.ARControllerDictionary;
 import com.parrot.arsdk.arcontroller.ARFrame;
+
+import java.util.ArrayList;
+import java.util.List;
 
 /**
  * Simple activity for video playback using the Asynchronous Reprojection Video Surface API. For a
@@ -61,6 +67,9 @@ public class WatchVideoActivity extends Activity implements DroneListener {
     private VideoSceneRenderer renderer;
     private boolean hasFirstFrame;
     private Drone drone;
+    private DroneService droneService;
+    private DroneControllerManager droneControllerManager;
+    public SpeechRecognitionManager speechRecognitionManager;
 
     // Transform a quad that fills the clip box at Z=0 to a 16:9 screen at Z=-4. Note that the matrix
     // is column-major, so the translation is on the last line in this representation.
@@ -99,7 +108,15 @@ public class WatchVideoActivity extends Activity implements DroneListener {
         AndroidCompat.setVrModeEnabled(this, true);
 
         drone = new Drone(this);
+        droneService = drone.getDroneService();
         drone.addDroneListener(this);
+
+        this.droneControllerManager = new DroneControllerManager(this);
+        this.droneControllerManager.addDroneService(droneService);
+
+        this.speechRecognitionManager = new SpeechRecognitionManager(this);
+        this.speechRecognitionManager.addDroneService(droneService);
+
         gvrLayout = new GvrLayout(this);
         surfaceView = new GLSurfaceView(this);
         surfaceView.setEGLContextClientVersion(2);
@@ -200,6 +217,9 @@ public class WatchVideoActivity extends Activity implements DroneListener {
                 finish();
             }
         }
+
+        this.speechRecognitionManager.start();
+        this.droneControllerManager.start();
     }
 
     @Override
@@ -219,6 +239,8 @@ public class WatchVideoActivity extends Activity implements DroneListener {
         // video Surface following brief onPause()/onResume() events. Wait for the new
         // onSurfaceAvailable() callback with a valid Surface before resuming the video player.
         gvrLayout.onPause();
+        this.speechRecognitionManager.stop();
+        this.droneControllerManager.stop();
         super.onStop();
     }
 
@@ -251,6 +273,8 @@ public class WatchVideoActivity extends Activity implements DroneListener {
     public void onBackPressed() {
         super.onBackPressed();
         gvrLayout.onBackPressed();
+        this.droneControllerManager.stop();
+        this.speechRecognitionManager.stop();
     }
 
     private void setImmersiveSticky() {
