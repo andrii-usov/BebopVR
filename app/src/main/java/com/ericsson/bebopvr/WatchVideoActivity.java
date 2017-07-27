@@ -76,7 +76,7 @@ public class WatchVideoActivity extends Activity implements DroneListener {
     private final float[] videoTransform = {1.6f, 0.0f, 0.0f, 0.0f,
             0.0f, 0.9f, 0.0f, 0.0f,
             0.0f, 0.0f, 1.0f, 0.0f,
-            0.0f, 0.0f, -4.f, 1.0f};
+            0.0f, 0.0f, -2.5f, 1.0f};
 
     // Runnable to refresh the viewer profile when gvrLayout is resumed.
     // This is done on the GL thread because refreshViewerProfile isn't thread-safe.

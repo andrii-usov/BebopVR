@@ -208,9 +208,23 @@ public class VideoSceneRenderer implements Renderer {
         // the start of the list, so that they are under the color viewports.
         // Note: GvrApi will skip viewports that reference surfaces that did not yet have any frames
         // drawn to them.
+
+        float[][] hardodedEyes = {{
+                0.99997246f, -0.006029046f, 0.0043270425f, 0.0f,
+                0.0061199814f, 0.999754f, -0.021319477f, 0.0f,
+                -0.0041974415f, 0.021345371f, 0.99976337f, 0.0f,
+                0.03195f, 0.0f, 0.0f, 1.0f
+        },{
+            0.99997246f, -0.006029046f, 0.0043270425f, 0.0f,
+                0.0061199814f, 0.999754f, -0.021319477f, 0.0f,
+                -0.0041974415f, 0.021345371f, 0.99976337f, 0.0f,
+                -0.03195f, 0.0f, 0.0f, 1.0f
+        }};
+
         for (int eye = 0; eye < 2; eye++) {
             recommendedList.get(eye, scratchViewport);
-            videoScene.updateViewport(scratchViewport, eyeFromWorld[eye]);
+
+            videoScene.updateViewport(scratchViewport, hardodedEyes[eye]);
             viewportList.set(eye, scratchViewport);
         }
         // Add the color viewport for each eye.

@@ -33,7 +33,9 @@ import java.nio.FloatBuffer;
  * application's GL thread, unless otherwise noted.
  */
 public class VideoScene {
-    private static final String TAG = "VideoScreen";
+
+    private static final String TAG = VideoScene.class.getSimpleName();
+
     private static final RectF videoUv = new RectF(0.f, 1.f, 1.f, 0.f);
 
     // Helper object for GL resources used by the scene.
@@ -101,6 +103,8 @@ public class VideoScene {
      */
     public void draw(float[] perspectiveFromWorld) {
         Matrix.multiplyMM(perspectiveFromQuad, 0, perspectiveFromWorld, 0, worldFromQuad, 0);
+        float [] perspectiveFromQuad2 = {1.6470759f, -0.018493723f, 0.025647257f, 0.020984119f, 0.028465627f, 0.77297187f, -0.06686869f, -0.054710753f,
+                0.28337988f, -0.08398248f, -1.2198565f, -0.9980644f, -1.1005098f, 0.33592993f, 2.6572037f, 3.9922576f};
         int program;
         if (isVideoPlaying) {
             program = resources.videoHoleProgram;
@@ -149,7 +153,7 @@ public class VideoScene {
         if (uMVPMatrix == -1) {
             throw new RuntimeException("Could not get uniform location for uMVPMatrix");
         }
-        GLES20.glUniformMatrix4fv(uMVPMatrix, 1, false, perspectiveFromQuad, 0);
+        GLES20.glUniformMatrix4fv(uMVPMatrix, 1, false, perspectiveFromQuad2, 0);
 
         GLES20.glDrawArrays(GLES20.GL_TRIANGLE_STRIP, 0, Resources.NUM_VERTICES);
 
@@ -206,10 +210,10 @@ public class VideoScene {
 
         static final float[] VERTEX_DATA = {
                 // X,   Y,    Z,    U, V
-                -1.0f, 1.0f, 0.0f, 1, 1,
-                1.0f, 1.0f, 0.0f, 0, 1,
-                -1.0f, -1.0f, 0.0f, 1, 0,
-                1.0f, -1.0f, 0.0f, 0, 0,
+                -5.0f, 5.0f, 0.0f, 1, 1,
+                5.0f, 5.0f, 0.0f, 0, 1,
+                -5.0f, -5.0f, 0.0f, 1, 0,
+                5.0f, -5.0f, 0.0f, 0, 0,
         };
 
         static final int NUM_VERTICES = 4;
