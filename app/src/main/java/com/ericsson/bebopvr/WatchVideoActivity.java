@@ -21,6 +21,10 @@ package com.ericsson.bebopvr;
  */
 
 import android.app.Activity;
+import android.hardware.Sensor;
+import android.hardware.SensorEvent;
+import android.hardware.SensorEventListener;
+import android.hardware.SensorManager;
 import android.opengl.GLSurfaceView;
 import android.os.Bundle;
 import android.os.Handler;
@@ -40,14 +44,12 @@ import com.ericsson.bebopvr.speech.SpeechRecognitionManager;
 import com.google.vr.ndk.base.AndroidCompat;
 import com.google.vr.ndk.base.BufferViewport;
 import com.google.vr.ndk.base.GvrLayout;
+import com.google.vr.sdk.base.CardboardViewApi;
 import com.parrot.arsdk.arcontroller.ARCONTROLLER_DEVICE_STATE_ENUM;
 import com.parrot.arsdk.arcontroller.ARCONTROLLER_DICTIONARY_KEY_ENUM;
 import com.parrot.arsdk.arcontroller.ARControllerCodec;
 import com.parrot.arsdk.arcontroller.ARControllerDictionary;
 import com.parrot.arsdk.arcontroller.ARFrame;
-
-import java.util.ArrayList;
-import java.util.List;
 
 /**
  * Simple activity for video playback using the Asynchronous Reprojection Video Surface API. For a
@@ -123,7 +125,7 @@ public class WatchVideoActivity extends Activity implements DroneListener {
         surfaceView.setEGLConfigChooser(5, 6, 5, 0, 0, 0);
         gvrLayout.setPresentationView(surfaceView);
         gvrLayout.setKeepScreenOn(true);
-        renderer = new VideoSceneRenderer(this, gvrLayout.getGvrApi());
+        renderer = new VideoSceneRenderer(this, gvrLayout.getGvrApi(), droneService);
 
         // Initialize the ExternalSurfaceListener to receive video Surface callbacks.
         hasFirstFrame = false;
@@ -135,7 +137,7 @@ public class WatchVideoActivity extends Activity implements DroneListener {
                         // is started when the Surface is set. Note that this callback is *asynchronous* with
                         // respect to the Surface becoming available, in which case videoPlayer may be null due
                         // to the Activity having been stopped.
-                        if ( codec != null ) {
+                        if (codec != null) {
                             codec.setSurface(surface);
                         }
                     }
@@ -308,13 +310,11 @@ public class WatchVideoActivity extends Activity implements DroneListener {
 
     @Override
     public void configureDecoder(ARControllerCodec codec) {
-        Log.d(TAG, "Configure decoder [this.hasFirstFrame" + this.hasFirstFrame + "]");
         this.codec.configureDecoder(codec);
     }
 
     @Override
     public void onFrameReceived(ARFrame frame) {
-        Log.d(TAG, "On Frame Received [this.hasFirstFrame" + this.hasFirstFrame + "]");
         this.codec.displayFrame(frame);
     }
 }

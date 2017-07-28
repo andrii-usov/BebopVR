@@ -22,7 +22,7 @@ import android.opengl.GLES20;
 import android.opengl.GLSurfaceView.Renderer;
 import android.opengl.Matrix;
 
-import com.google.android.exoplayer2.ext.gvr.GvrAudioProcessor;
+import com.ericsson.bebopvr.dron.DroneService;
 import com.google.vr.ndk.base.BufferSpec;
 import com.google.vr.ndk.base.BufferViewport;
 import com.google.vr.ndk.base.BufferViewportList;
@@ -73,10 +73,12 @@ public class VideoSceneRenderer implements Renderer {
     private final RectF eyeFov = new RectF();
     private final RectF eyeUv = new RectF();
     private final Point targetSize = new Point();
+    private DroneService droneService;
 
-    public VideoSceneRenderer(Context context, GvrApi api) {
+    public VideoSceneRenderer(Context context, GvrApi api, DroneService droneService) {
         this.context = context;
         this.api = api;
+        this.droneService = droneService;
         recommendedList = api.createBufferViewportList();
         viewportList = api.createBufferViewportList();
         scratchViewport = api.createBufferViewport();
@@ -190,6 +192,10 @@ public class VideoSceneRenderer implements Renderer {
         videoScene.setVideoTransform(worldFromQuad);
     }
 
+    int counter = 0;
+    byte tilt = 0;
+    byte pan = 0;
+
     private void updateHeadAndEyeMatrices() {
         api.getHeadSpaceFromStartSpaceRotation(
                 headFromWorld, System.nanoTime() + predictionOffsetNanos);
@@ -197,6 +203,16 @@ public class VideoSceneRenderer implements Renderer {
             api.getEyeFromHeadMatrix(eye, eyeFromHead);
             Matrix.multiplyMM(eyeFromWorld[eye], 0, eyeFromHead, 0, headFromWorld, 0);
         }
+        byte t = (byte) (-headFromWorld[6] * 100);
+        byte p = (byte) (-headFromWorld[2] * 100);
+
+
+        if(Math.abs(tilt - t) > 2 || Math.abs(pan - p) > 2) {
+            droneService.moveCamera(tilt, pan);
+            tilt = t;
+            pan = p;
+        }
+
     }
 
     private void populateBufferViewportList() {
@@ -214,8 +230,8 @@ public class VideoSceneRenderer implements Renderer {
                 0.0061199814f, 0.999754f, -0.021319477f, 0.0f,
                 -0.0041974415f, 0.021345371f, 0.99976337f, 0.0f,
                 0.03195f, 0.0f, 0.0f, 1.0f
-        },{
-            0.99997246f, -0.006029046f, 0.0043270425f, 0.0f,
+        }, {
+                0.99997246f, -0.006029046f, 0.0043270425f, 0.0f,
                 0.0061199814f, 0.999754f, -0.021319477f, 0.0f,
                 -0.0041974415f, 0.021345371f, 0.99976337f, 0.0f,
                 -0.03195f, 0.0f, 0.0f, 1.0f
