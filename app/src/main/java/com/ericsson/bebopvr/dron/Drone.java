@@ -159,7 +159,7 @@ public class Drone {
 
         @Override
         public void onCommandReceived(ARDeviceController deviceController, ARCONTROLLER_DICTIONARY_KEY_ENUM commandKey, ARControllerDictionary elementDictionary) {
-            Log.d(TAG, "onCommandReceived: " + commandKey);
+            //Log.d(TAG, "onCommandReceived: " + commandKey);
             for(DroneListener droneListener : droneListeners) {
                 droneListener.onCommandReceived(commandKey, elementDictionary);
             }
@@ -196,6 +196,13 @@ public class Drone {
                 } else {
                     deviceController.getFeatureARDrone3().setPilotingPCMD((byte) 1, roll, pitch, yaw, gaz, 0);
                 }
+            }
+        }
+
+        @Override
+        public void moveCamera(byte tilt, byte pan) {
+            if(canDo()) {
+                deviceController.getFeatureARDrone3().sendCameraOrientation(tilt, pan);
             }
         }
 

@@ -219,6 +219,11 @@ public class ControllerClientActivity extends Activity {
         }
 
         @Override
+        public void moveCamera(byte tilt, byte pan) {
+
+        }
+
+        @Override
         public void land() {
             status = "LANDED";
             uiHandler.post(this);

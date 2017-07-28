@@ -20,6 +20,8 @@ public interface DroneService {
      */
     void move(byte roll, byte pitch, byte yaw, byte gaz);
 
+    void moveCamera(byte tilt, byte pan);
+
     void land();
 
     void takeOff();
